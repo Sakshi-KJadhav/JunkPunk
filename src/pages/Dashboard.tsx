@@ -36,21 +36,8 @@ const Dashboard = () => {
     if (user) {
       fetchEntries();
       fetchProfile();
-      applyPenalties();
     }
   }, [user]);
-
-  const applyPenalties = async () => {
-    if (!user) return;
-    // Apply penalties for any missing days since sign-up/profile creation until yesterday
-    const { error } = await supabase.rpc('apply_missing_penalties', { user_id_param: user.id });
-    if (error) {
-      console.error('Error applying penalties:', error);
-    } else {
-      await fetchEntries();
-      await fetchProfile();
-    }
-  };
 
   const fetchEntries = async () => {
     if (!user) return;
@@ -129,16 +116,48 @@ const Dashboard = () => {
   const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !friendEmail) return;
-    const { data, error } = await supabase.rpc('request_friend_by_email', {
-      requester_user_id: user.id,
-      friend_email: friendEmail,
-    });
-    if (error) {
-      toast({ title: 'Failed to send request', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: String(data || 'Request sent'), description: friendEmail });
-      setFriendEmail('');
+    // Find user by email
+    const { data: candidates, error: findErr } = await supabase
+      .from('profiles')
+      .select('user_id, email')
+      .ilike('email', friendEmail)
+      .limit(1);
+    if (findErr) {
+      toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
+      return;
     }
+    const target = candidates?.[0];
+    if (!target) {
+      toast({ title: 'No user found with that email', description: friendEmail });
+      return;
+    }
+    if (target.user_id === user.id) {
+      toast({ title: 'You cannot add yourself' });
+      return;
+    }
+    // Check existing link either direction
+    const { data: existing, error: linkErr } = await supabase
+      .from('friendships')
+      .select('id')
+      .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`)
+      .limit(1);
+    if (linkErr) {
+      toast({ title: 'Could not check existing friendship', description: linkErr.message, variant: 'destructive' });
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast({ title: 'Friendship already exists or pending' });
+      return;
+    }
+    const { error: insertErr } = await supabase
+      .from('friendships')
+      .insert({ user_id: user.id, friend_user_id: target.user_id, status: 'pending' });
+    if (insertErr) {
+      toast({ title: 'Failed to send request', description: insertErr.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Friend request sent!', description: target.email || '' });
+    setFriendEmail('');
   };
 
   const updateEntry = async (choice: 'green' | 'red') => {
@@ -238,15 +257,11 @@ const Dashboard = () => {
                     .map(e => new Date(e.entry_date)),
                   red: entries
                     .filter(e => e.choice === 'red')
-                    .map(e => new Date(e.entry_date)),
-                  penalty: entries
-                    .filter(e => e.choice === 'penalty')
                     .map(e => new Date(e.entry_date))
                 }}
                 modifiersStyles={{
                   green: { backgroundColor: 'hsl(var(--success))', color: 'white' },
-                  red: { backgroundColor: 'hsl(var(--destructive))', color: 'white' },
-                  penalty: { backgroundColor: 'hsl(var(--warning))', color: 'white' }
+                  red: { backgroundColor: 'hsl(var(--destructive))', color: 'white' }
                 }}
               />
             </CardContent>
@@ -263,14 +278,14 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedEntry ? (
+              {selectedEntry && selectedEntry.choice !== 'penalty' ? (
                 <div className="text-center space-y-4">
                   <div className={`p-4 rounded-lg ${
                     selectedEntry.choice === 'green' 
                       ? 'bg-success/10 text-success' 
                       : selectedEntry.choice === 'red'
                       ? 'bg-destructive/10 text-destructive'
-                      : 'bg-warning/10 text-warning'
+                      : ''
                   }`}>
                     {selectedEntry.choice === 'green' && (
                       <div className="flex items-center justify-center gap-2">
@@ -282,12 +297,6 @@ const Dashboard = () => {
                       <div className="flex items-center justify-center gap-2">
                         <XCircle className="h-6 w-6" />
                         <span className="font-semibold">Had junk food -10 points</span>
-                      </div>
-                    )}
-                    {selectedEntry.choice === 'penalty' && (
-                      <div className="flex items-center justify-center gap-2">
-                        <XCircle className="h-6 w-6" />
-                        <span className="font-semibold">No entry penalty -20 points</span>
                       </div>
                     )}
                   </div>
