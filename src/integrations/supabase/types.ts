@@ -68,12 +68,54 @@ export type Database = {
         }
         Relationships: []
       }
+      , friendships: {
+        Row: {
+          id: string
+          user_id: string
+          friend_user_id: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          friend_user_id: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          friend_user_id?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_missing_penalties: {
+        Args: {
+          user_id_param: string
+        }
+        Returns: number
+      }
+      , recalculate_profile_points: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: void
+      }
+      , request_friend_by_email: {
+        Args: {
+          requester_user_id: string,
+          friend_email: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

@@ -4,10 +4,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CheckCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { addDays, isAfter } from 'date-fns';
 
 interface DailyEntry {
   id: string;
@@ -27,13 +29,28 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile>({ total_points: 0 });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const [friendEmail, setFriendEmail] = useState('');
+  const [friends, setFriends] = useState<{ user_id: string; email: string | null; total_points: number }[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchEntries();
       fetchProfile();
+      applyPenalties();
     }
   }, [user]);
+
+  const applyPenalties = async () => {
+    if (!user) return;
+    // Apply penalties for any missing days since sign-up/profile creation until yesterday
+    const { error } = await supabase.rpc('apply_missing_penalties', { user_id_param: user.id });
+    if (error) {
+      console.error('Error applying penalties:', error);
+    } else {
+      await fetchEntries();
+      await fetchProfile();
+    }
+  };
 
   const fetchEntries = async () => {
     if (!user) return;
@@ -67,8 +84,71 @@ const Dashboard = () => {
     }
   };
 
+  const fetchFriends = async () => {
+    if (!user) return;
+    // Get accepted friends' profiles plus self
+    const { data: acceptedFriendLinks, error: linkErr } = await supabase
+      .from('friendships')
+      .select('user_id, friend_user_id, status')
+      .or(`user_id.eq.${user.id},friend_user_id.eq.${user.id}`)
+      .eq('status', 'accepted');
+    if (linkErr) {
+      console.error('Error fetching friendships:', linkErr);
+      return;
+    }
+    const friendIds = new Set<string>();
+    acceptedFriendLinks?.forEach((l: any) => {
+      friendIds.add(l.user_id === user.id ? l.friend_user_id : l.user_id);
+    });
+    friendIds.add(user.id);
+
+    if (friendIds.size === 0) {
+      setFriends([]);
+      return;
+    }
+
+    const idsArray = Array.from(friendIds);
+    const { data: profilesData, error: profErr } = await supabase
+      .from('profiles')
+      .select('user_id, email, total_points')
+      .in('user_id', idsArray);
+    if (profErr) {
+      console.error('Error fetching friend profiles:', profErr);
+      return;
+    }
+    const sorted = (profilesData || []).sort((a, b) => b.total_points - a.total_points);
+    setFriends(sorted as any);
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchFriends();
+    }
+  }, [user, entries, profile]);
+
+  const handleAddFriend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !friendEmail) return;
+    const { data, error } = await supabase.rpc('request_friend_by_email', {
+      requester_user_id: user.id,
+      friend_email: friendEmail,
+    });
+    if (error) {
+      toast({ title: 'Failed to send request', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: String(data || 'Request sent'), description: friendEmail });
+      setFriendEmail('');
+    }
+  };
+
   const updateEntry = async (choice: 'green' | 'red') => {
     if (!user) return;
+    // Prevent logging for future dates
+    const tomorrow = addDays(new Date(), 1);
+    if (isAfter(selectedDate, tomorrow)) {
+      toast({ title: 'Invalid date', description: 'You can only log up to today.', variant: 'destructive' });
+      return;
+    }
     
     setLoading(true);
     const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -90,11 +170,7 @@ const Dashboard = () => {
         variant: "destructive"
       });
     } else {
-      // Update total points
-      await supabase.rpc('increment_points', {
-        user_id_param: user.id,
-        points_to_add: points
-      });
+      // total_points is recalculated via DB trigger; just refetch
       
       toast({
         title: choice === 'green' ? "Great choice!" : "Tomorrow is a new day",
@@ -155,6 +231,7 @@ const Dashboard = () => {
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border"
+                toDate={new Date()}
                 modifiers={{
                   green: entries
                     .filter(e => e.choice === 'green')
@@ -253,6 +330,40 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Friends & Leaderboard */}
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Friends Leaderboard</CardTitle>
+              <CardDescription>Compete with friends by total points</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <form onSubmit={handleAddFriend} className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="Friend's email"
+                  value={friendEmail}
+                  onChange={(e) => setFriendEmail(e.target.value)}
+                  required
+                />
+                <Button type="submit">Add Friend</Button>
+              </form>
+              <div className="space-y-2">
+                {friends.map((f) => (
+                  <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
+                    <span className="truncate">{f.email || f.user_id}</span>
+                    <Badge variant="outline">{f.total_points} pts</Badge>
+                  </div>
+                ))}
+                {friends.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No friends yet. Add someone to start competing.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
       </div>
     </div>
   );
