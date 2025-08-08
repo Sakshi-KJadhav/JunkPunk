@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_entries: {
+        Row: {
+          choice: string | null
+          created_at: string
+          entry_date: string
+          id: string
+          points: number
+          user_id: string
+        }
+        Insert: {
+          choice?: string | null
+          created_at?: string
+          entry_date: string
+          id?: string
+          points?: number
+          user_id: string
+        }
+        Update: {
+          choice?: string | null
+          created_at?: string
+          entry_date?: string
+          id?: string
+          points?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          total_points: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          total_points?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          total_points?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
