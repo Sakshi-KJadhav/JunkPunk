@@ -73,18 +73,36 @@ const Dashboard = () => {
 
   const fetchFriends = async () => {
     if (!user) return;
-    // Get accepted friends' profiles plus self
-    const { data: acceptedFriendLinks, error: linkErr } = await supabase
-      .from('friendships')
-      .select('user_id, friend_user_id, status')
-      .or(`user_id.eq.${user.id},friend_user_id.eq.${user.id}`)
-      .eq('status', 'accepted');
-    if (linkErr) {
-      console.error('Error fetching friendships:', linkErr);
+    // Get accepted friends' profiles plus self (two queries to avoid OR ambiguity)
+    const [asRequester, asFriendOf] = await Promise.all([
+      supabase
+        .from('friendships')
+        .select('user_id, friend_user_id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted'),
+      supabase
+        .from('friendships')
+        .select('user_id, friend_user_id, status')
+        .eq('friend_user_id', user.id)
+        .eq('status', 'accepted'),
+    ]);
+
+    if (asRequester.error) {
+      console.error('Error fetching friendships (requester):', asRequester.error);
       return;
     }
+    if (asFriendOf.error) {
+      console.error('Error fetching friendships (friend_of):', asFriendOf.error);
+      return;
+    }
+
+    const acceptedFriendLinks = [
+      ...(asRequester.data || []),
+      ...(asFriendOf.data || []),
+    ];
+
     const friendIds = new Set<string>();
-    acceptedFriendLinks?.forEach((l: any) => {
+    acceptedFriendLinks.forEach((l: any) => {
       friendIds.add(l.user_id === user.id ? l.friend_user_id : l.user_id);
     });
     friendIds.add(user.id);
@@ -135,17 +153,27 @@ const Dashboard = () => {
       toast({ title: 'You cannot add yourself' });
       return;
     }
-    // Check existing link either direction
-    const { data: existing, error: linkErr } = await supabase
-      .from('friendships')
-      .select('id')
-      .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`)
-      .limit(1);
-    if (linkErr) {
-      toast({ title: 'Could not check existing friendship', description: linkErr.message, variant: 'destructive' });
+    // Check existing link either direction using two queries
+    const [existingA, existingB] = await Promise.all([
+      supabase
+        .from('friendships')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('friend_user_id', target.user_id)
+        .limit(1),
+      supabase
+        .from('friendships')
+        .select('id')
+        .eq('user_id', target.user_id)
+        .eq('friend_user_id', user.id)
+        .limit(1),
+    ]);
+    if (existingA.error || existingB.error) {
+      const err = existingA.error || existingB.error;
+      toast({ title: 'Could not check existing friendship', description: err?.message, variant: 'destructive' });
       return;
     }
-    if (existing && existing.length > 0) {
+    if ((existingA.data && existingA.data.length > 0) || (existingB.data && existingB.data.length > 0)) {
       toast({ title: 'Friendship already exists or pending' });
       return;
     }
