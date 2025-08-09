@@ -92,8 +92,7 @@ const Dashboard = () => {
     const { data: acceptedFriendLinks, error: linkErr } = await supabase
       .from('friendships')
       .select('user_id, friend_user_id, status')
-      .or(`user_id.eq.${user.id},friend_user_id.eq.${user.id}`)
-      .eq('status', 'accepted');
+      .or(`and(user_id.eq.${user.id},status.eq.accepted),and(friend_user_id.eq.${user.id},status.eq.accepted)`);
     if (linkErr) {
       console.error('Error fetching friendships:', linkErr);
       return;
