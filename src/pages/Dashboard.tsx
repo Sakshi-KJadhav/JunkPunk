@@ -88,21 +88,26 @@ const Dashboard = () => {
 
   const fetchFriends = async () => {
     if (!user) return;
-    // Get accepted friends' profiles plus self
-    const { data: acceptedFriendLinks, error: linkErr } = await supabase
+    
+    // Get friendships where current user is the requester
+    const { data: friendships1 } = await supabase
       .from('friendships')
-      .select('user_id, friend_user_id')
-      .eq('status', 'accepted')
-      .or(`user_id.eq.${user.id},friend_user_id.eq.${user.id}`);
-    if (linkErr) {
-      console.error('Error fetching friendships:', linkErr);
-      return;
-    }
+      .select('friend_user_id')
+      .eq('user_id', user.id)
+      .eq('status', 'accepted');
+    
+    // Get friendships where current user is the friend
+    const { data: friendships2 } = await supabase
+      .from('friendships')
+      .select('user_id')
+      .eq('friend_user_id', user.id)
+      .eq('status', 'accepted');
+    
+    // Collect all friend IDs
     const friendIds = new Set<string>();
-    acceptedFriendLinks?.forEach((l: any) => {
-      friendIds.add(l.user_id === user.id ? l.friend_user_id : l.user_id);
-    });
-    friendIds.add(user.id);
+    friendships1?.forEach(f => friendIds.add(f.friend_user_id));
+    friendships2?.forEach(f => friendIds.add(f.user_id));
+    friendIds.add(user.id); // Add self
 
     if (friendIds.size === 0) {
       setFriends([]);
