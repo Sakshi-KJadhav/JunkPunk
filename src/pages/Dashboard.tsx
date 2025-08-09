@@ -91,7 +91,7 @@ const Dashboard = () => {
     // Get accepted friends' profiles plus self
     const { data: acceptedFriendLinks, error: linkErr } = await supabase
       .from('friendships')
-      .select('user_id, friend_user_id, status')
+      .select('user_id, friend_user_id')
       .eq('status', 'accepted')
       .or(`user_id.eq.${user.id},friend_user_id.eq.${user.id}`);
     if (linkErr) {
