@@ -16,6 +16,8 @@ interface DailyEntry {
   entry_date: string;
   choice: 'green' | 'red' | 'penalty';
   points: number;
+  user_id: string;
+  created_at: string;
 }
 
 interface Profile {
@@ -64,7 +66,7 @@ const Dashboard = () => {
     if (error) {
       console.error('Error fetching entries:', error);
     } else {
-      setEntries(data || []);
+      setEntries((data || []) as DailyEntry[]);
     }
   };
 
