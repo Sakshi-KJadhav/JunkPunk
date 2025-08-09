@@ -41,6 +41,30 @@ export type Database = {
         }
         Relationships: []
       }
+      friendships: {
+        Row: {
+          created_at: string
+          friend_user_id: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_user_id: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_user_id?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -73,9 +97,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_missing_penalties: {
+        Args: { user_id_param: string }
+        Returns: number
+      }
       increment_points: {
         Args: { user_id_param: string; points_to_add: number }
         Returns: undefined
+      }
+      recalculate_profile_points: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
+      request_friend_by_email: {
+        Args: { requester_user_id: string; friend_email: string }
+        Returns: string
       }
     }
     Enums: {
