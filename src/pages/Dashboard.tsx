@@ -38,21 +38,10 @@ const Dashboard = () => {
     if (user) {
       fetchEntries();
       fetchProfile();
-      applyPenalties();
     }
   }, [user]);
 
-  const applyPenalties = async () => {
-    if (!user) return;
-    // Apply penalties for any missing days since sign-up/profile creation until yesterday
-    const { error } = await supabase.rpc('apply_missing_penalties', { user_id_param: user.id });
-    if (error) {
-      console.error('Error applying penalties:', error);
-    } else {
-      await fetchEntries();
-      await fetchProfile();
-    }
-  };
+  // penalties removed
 
   const fetchEntries = async () => {
     if (!user) return;
@@ -91,26 +80,39 @@ const Dashboard = () => {
 
   const fetchFriends = async () => {
     if (!user) return;
-    
-    // Get friendships where current user is the requester
-    const { data: friendships1 } = await supabase
-      .from('friendships')
-      .select('friend_user_id')
-      .eq('user_id', user.id)
-      .eq('status', 'accepted');
-    
-    // Get friendships where current user is the friend
-    const { data: friendships2 } = await supabase
-      .from('friendships')
-      .select('user_id')
-      .eq('friend_user_id', user.id)
-      .eq('status', 'accepted');
-    
-    // Collect all friend IDs
+    // Get accepted friends' profiles plus self (two queries to avoid OR ambiguity)
+    const [asRequester, asFriendOf] = await Promise.all([
+      supabase
+        .from('friendships')
+        .select('user_id, friend_user_id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'accepted'),
+      supabase
+        .from('friendships')
+        .select('user_id, friend_user_id, status')
+        .eq('friend_user_id', user.id)
+        .eq('status', 'accepted'),
+    ]);
+
+    if (asRequester.error) {
+      console.error('Error fetching friendships (requester):', asRequester.error);
+      return;
+    }
+    if (asFriendOf.error) {
+      console.error('Error fetching friendships (friend_of):', asFriendOf.error);
+      return;
+    }
+
+    const acceptedFriendLinks = [
+      ...(asRequester.data || []),
+      ...(asFriendOf.data || []),
+    ];
+
     const friendIds = new Set<string>();
-    friendships1?.forEach(f => friendIds.add(f.friend_user_id));
-    friendships2?.forEach(f => friendIds.add(f.user_id));
-    friendIds.add(user.id); // Add self
+    acceptedFriendLinks.forEach((l: any) => {
+      friendIds.add(l.user_id === user.id ? l.friend_user_id : l.user_id);
+    });
+    friendIds.add(user.id);
 
     if (friendIds.size === 0) {
       setFriends([]);
@@ -139,16 +141,58 @@ const Dashboard = () => {
   const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !friendEmail) return;
-    const { data, error } = await supabase.rpc('request_friend_by_email', {
-      requester_user_id: user.id,
-      friend_email: friendEmail,
-    });
-    if (error) {
-      toast({ title: 'Failed to send request', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: String(data || 'Request sent'), description: friendEmail });
-      setFriendEmail('');
+    // Find user by email
+    const { data: candidates, error: findErr } = await supabase
+      .from('profiles')
+      .select('user_id, email')
+      .ilike('email', friendEmail)
+      .limit(1);
+    if (findErr) {
+      toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
+      return;
     }
+    const target = candidates?.[0];
+    if (!target) {
+      toast({ title: 'No user found with that email', description: friendEmail });
+      return;
+    }
+    if (target.user_id === user.id) {
+      toast({ title: 'You cannot add yourself' });
+      return;
+    }
+    // Check existing link either direction using two queries
+    const [existingA, existingB] = await Promise.all([
+      supabase
+        .from('friendships')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('friend_user_id', target.user_id)
+        .limit(1),
+      supabase
+        .from('friendships')
+        .select('id')
+        .eq('user_id', target.user_id)
+        .eq('friend_user_id', user.id)
+        .limit(1),
+    ]);
+    if (existingA.error || existingB.error) {
+      const err = existingA.error || existingB.error;
+      toast({ title: 'Could not check existing friendship', description: err?.message, variant: 'destructive' });
+      return;
+    }
+    if ((existingA.data && existingA.data.length > 0) || (existingB.data && existingB.data.length > 0)) {
+      toast({ title: 'Friendship already exists or pending' });
+      return;
+    }
+    const { error: insertErr } = await supabase
+      .from('friendships')
+      .insert({ user_id: user.id, friend_user_id: target.user_id, status: 'pending' });
+    if (insertErr) {
+      toast({ title: 'Failed to send request', description: insertErr.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Friend request sent!', description: target.email || '' });
+    setFriendEmail('');
   };
 
   const updateEntry = async (choice: 'green' | 'red') => {
@@ -248,15 +292,11 @@ const Dashboard = () => {
                     .map(e => new Date(e.entry_date)),
                   red: entries
                     .filter(e => e.choice === 'red')
-                    .map(e => new Date(e.entry_date)),
-                  penalty: entries
-                    .filter(e => e.choice === 'penalty')
                     .map(e => new Date(e.entry_date))
                 }}
                 modifiersStyles={{
                   green: { backgroundColor: 'hsl(var(--success))', color: 'white' },
-                  red: { backgroundColor: 'hsl(var(--destructive))', color: 'white' },
-                  penalty: { backgroundColor: 'hsl(var(--warning))', color: 'white' }
+                  red: { backgroundColor: 'hsl(var(--destructive))', color: 'white' }
                 }}
               />
             </CardContent>
@@ -273,14 +313,14 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedEntry ? (
+              {selectedEntry && selectedEntry.choice !== 'penalty' ? (
                 <div className="text-center space-y-4">
                   <div className={`p-4 rounded-lg ${
                     selectedEntry.choice === 'green' 
                       ? 'bg-success/10 text-success' 
                       : selectedEntry.choice === 'red'
                       ? 'bg-destructive/10 text-destructive'
-                      : 'bg-warning/10 text-warning'
+                      : ''
                   }`}>
                     {selectedEntry.choice === 'green' && (
                       <div className="flex items-center justify-center gap-2">
@@ -292,12 +332,6 @@ const Dashboard = () => {
                       <div className="flex items-center justify-center gap-2">
                         <XCircle className="h-6 w-6" />
                         <span className="font-semibold">Had junk food -10 points</span>
-                      </div>
-                    )}
-                    {selectedEntry.choice === 'penalty' && (
-                      <div className="flex items-center justify-center gap-2">
-                        <XCircle className="h-6 w-6" />
-                        <span className="font-semibold">No entry penalty -20 points</span>
                       </div>
                     )}
                   </div>
