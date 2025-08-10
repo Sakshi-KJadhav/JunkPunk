@@ -66,7 +66,10 @@ const Dashboard = () => {
     if (error) {
       console.error('Error fetching entries:', error);
     } else {
-      setEntries((data || []) as DailyEntry[]);
+      setEntries((data || []).map(entry => ({
+        ...entry,
+        choice: entry.choice as 'green' | 'red' | 'penalty'
+      })));
     }
   };
 
