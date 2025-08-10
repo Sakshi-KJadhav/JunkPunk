@@ -191,6 +191,20 @@ const Dashboard = () => {
       toast({ title: 'Failed to send request', description: insertErr.message, variant: 'destructive' });
       return;
     }
+
+    // Send email notification to the friend
+    try {
+      await supabase.functions.invoke('send-friend-notification', {
+        body: {
+          senderEmail: user.email,
+          recipientEmail: target.email,
+        }
+      });
+    } catch (emailError) {
+      console.error('Failed to send notification email:', emailError);
+      // Don't show error to user as the friend request was still created successfully
+    }
+
     toast({ title: 'Friend request sent!', description: target.email || '' });
     setFriendEmail('');
   };
