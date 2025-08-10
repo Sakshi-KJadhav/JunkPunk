@@ -41,7 +41,12 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-success/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-primary mb-2">JunkPunk</h1>
+          <h1 
+            className="text-4xl font-bold text-primary mb-2 cursor-pointer hover:opacity-80 transition-opacity" 
+            onClick={() => navigate('/')}
+          >
+            JunkPunk
+          </h1>
           <p className="text-muted-foreground">Your healthy eating companion</p>
         </div>
         
