@@ -6,13 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -35,6 +39,36 @@ const Auth = () => {
     setLoading(true);
     await signUp(email, password);
     setLoading(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth`
+    });
+
+    if (error) {
+      toast({
+        title: "Reset failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Reset link sent!",
+        description: "Check your email for a password reset link."
+      });
+    }
+    setResetLoading(false);
   };
 
   return (
@@ -95,6 +129,18 @@ const Auth = () => {
                   >
                     {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
+                  <div className="text-center mt-4">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleForgotPassword}
+                      disabled={resetLoading}
+                      className="text-sm text-muted-foreground hover:text-primary"
+                    >
+                      {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
+                    </Button>
+                  </div>
                 </form>
               </TabsContent>
               
