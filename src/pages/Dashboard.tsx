@@ -189,20 +189,37 @@ const Dashboard = () => {
       return;
     }
 
-    // Send email notification to the friend
+    // Send email notification to the friend immediately
     try {
-      await supabase.functions.invoke('send-friend-notification', {
+      const emailResult = await supabase.functions.invoke('send-friend-notification', {
         body: {
           senderEmail: user.email,
           recipientEmail: target.email,
         }
       });
+      
+      if (emailResult.error) {
+        console.error('Email service error:', emailResult.error);
+        toast({ 
+          title: 'Friend request sent', 
+          description: `Request sent to ${target.email}, but email notification may be delayed.`,
+          variant: 'default'
+        });
+      } else {
+        toast({ 
+          title: 'Friend request sent!', 
+          description: `Invitation email sent to ${target.email}` 
+        });
+      }
     } catch (emailError) {
       console.error('Failed to send notification email:', emailError);
-      // Don't show error to user as the friend request was still created successfully
+      toast({ 
+        title: 'Friend request sent', 
+        description: `Request sent to ${target.email}, but email notification failed.`,
+        variant: 'default'
+      });
     }
 
-    toast({ title: 'Friend request sent!', description: target.email || '' });
     setFriendEmail('');
   };
 
