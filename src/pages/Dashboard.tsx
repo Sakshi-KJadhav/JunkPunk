@@ -141,12 +141,9 @@ const Dashboard = () => {
   const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !friendEmail) return;
-    // Find user by email
+    // Find user by email using secure function
     const { data: candidates, error: findErr } = await supabase
-      .from('profiles')
-      .select('user_id, email')
-      .ilike('email', friendEmail)
-      .limit(1);
+      .rpc('search_user_by_email', { search_email: friendEmail });
     if (findErr) {
       toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
       return;

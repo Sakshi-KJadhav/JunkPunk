@@ -113,6 +113,13 @@ export type Database = {
         Args: { requester_user_id: string; friend_email: string }
         Returns: string
       }
+      search_user_by_email: {
+        Args: { search_email: string }
+        Returns: {
+          user_id: string
+          email: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
