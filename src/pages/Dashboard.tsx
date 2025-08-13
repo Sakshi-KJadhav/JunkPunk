@@ -33,6 +33,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [friendEmail, setFriendEmail] = useState('');
   const [friends, setFriends] = useState<{ user_id: string; email: string | null; total_points: number }[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; email: string | null }[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -132,9 +133,67 @@ const Dashboard = () => {
     setFriends(sorted as any);
   };
 
+  const fetchPendingRequests = async () => {
+    if (!user) return;
+    
+    // Get pending friend requests sent TO this user with sender's email
+    const { data: requests, error } = await supabase
+      .from('friendships')
+      .select(`
+        id,
+        user_id,
+        profiles!inner(email)
+      `)
+      .eq('friend_user_id', user.id)
+      .eq('status', 'pending');
+    
+    if (error) {
+      console.error('Error fetching pending requests:', error);
+      return;
+    }
+    
+    setPendingRequests((requests || []).map(req => ({
+      id: req.id,
+      user_id: req.user_id,
+      email: (req.profiles as any)?.email || null
+    })));
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('friendships')
+      .update({ status: 'accepted' })
+      .eq('id', requestId);
+    
+    if (error) {
+      toast({ title: 'Failed to accept request', description: error.message, variant: 'destructive' });
+      return;
+    }
+    
+    toast({ title: 'Friend request accepted!', variant: 'default' });
+    fetchPendingRequests();
+    fetchFriends();
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('friendships')
+      .delete()
+      .eq('id', requestId);
+    
+    if (error) {
+      toast({ title: 'Failed to reject request', description: error.message, variant: 'destructive' });
+      return;
+    }
+    
+    toast({ title: 'Friend request rejected', variant: 'default' });
+    fetchPendingRequests();
+  };
+
   useEffect(() => {
     if (user) {
       fetchFriends();
+      fetchPendingRequests();
     }
   }, [user, entries, profile]);
 
@@ -200,14 +259,14 @@ const Dashboard = () => {
         return;
       }
 
-      // For development/testing: Show success without sending email due to domain restrictions
       toast({ 
         title: 'Friend request sent!', 
-        description: `Request sent to ${target.email}. Email notifications require domain verification.`,
+        description: `Request sent to ${target.email}. They will see it in their JunkPunk dashboard.`,
         variant: 'default'
       });
 
       setFriendEmail('');
+      fetchPendingRequests();  // Refresh in case they sent us a request too
       
     } catch (error) {
       console.error('Error adding friend:', error);
@@ -397,38 +456,69 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Friends & Leaderboard */}
-        <div className="grid grid-cols-1 gap-6">
+        {/* Pending Friend Requests */}
+        {pendingRequests.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Friends Leaderboard</CardTitle>
-              <CardDescription>Compete with friends by total points</CardDescription>
+              <CardTitle>Pending Friend Requests</CardTitle>
+              <CardDescription>People who want to be your friend</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <form onSubmit={handleAddFriend} className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="Friend's email"
-                  value={friendEmail}
-                  onChange={(e) => setFriendEmail(e.target.value)}
-                  required
-                />
-                <Button type="submit">Add Friend</Button>
-              </form>
-              <div className="space-y-2">
-                {friends.map((f) => (
-                  <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
-                    <span className="truncate">{f.email || f.user_id}</span>
-                    <Badge variant="outline">{f.total_points} pts</Badge>
+            <CardContent className="space-y-3">
+              {pendingRequests.map((request) => (
+                <div key={request.id} className="flex items-center justify-between border rounded-md p-3">
+                  <span className="truncate">{request.email || request.user_id}</span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleAcceptRequest(request.id)}
+                      className="bg-success hover:bg-success/90"
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRejectRequest(request.id)}
+                    >
+                      Reject
+                    </Button>
                   </div>
-                ))}
-                {friends.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No friends yet. Add someone to start competing.</p>
-                )}
-              </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        </div>
+        )}
+
+        {/* Friends & Leaderboard */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Friends Leaderboard</CardTitle>
+            <CardDescription>Compete with friends by total points</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <form onSubmit={handleAddFriend} className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="Friend's email"
+                value={friendEmail}
+                onChange={(e) => setFriendEmail(e.target.value)}
+                required
+              />
+              <Button type="submit" disabled={loading}>Add Friend</Button>
+            </form>
+            <div className="space-y-2">
+              {friends.map((f) => (
+                <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
+                  <span className="truncate">{f.email || f.user_id}</span>
+                  <Badge variant="outline">{f.total_points} pts</Badge>
+                </div>
+              ))}
+              {friends.length === 0 && (
+                <p className="text-sm text-muted-foreground">No friends yet. Add someone to start competing.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
       </div>
     </div>
