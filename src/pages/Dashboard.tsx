@@ -141,86 +141,73 @@ const Dashboard = () => {
   const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !friendEmail) return;
-    // Find user by email using secure function
-    const { data: candidates, error: findErr } = await supabase
-      .rpc('search_user_by_email', { search_email: friendEmail });
-    if (findErr) {
-      toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
-      return;
-    }
-    const target = candidates?.[0];
-    if (!target) {
-      toast({ title: 'No user found with that email', description: friendEmail });
-      return;
-    }
-    if (target.user_id === user.id) {
-      toast({ title: 'You cannot add yourself' });
-      return;
-    }
-    // Check existing link either direction using two queries
-    const [existingA, existingB] = await Promise.all([
-      supabase
-        .from('friendships')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('friend_user_id', target.user_id)
-        .limit(1),
-      supabase
-        .from('friendships')
-        .select('id')
-        .eq('user_id', target.user_id)
-        .eq('friend_user_id', user.id)
-        .limit(1),
-    ]);
-    if (existingA.error || existingB.error) {
-      const err = existingA.error || existingB.error;
-      toast({ title: 'Could not check existing friendship', description: err?.message, variant: 'destructive' });
-      return;
-    }
-    if ((existingA.data && existingA.data.length > 0) || (existingB.data && existingB.data.length > 0)) {
-      toast({ title: 'Friendship already exists or pending' });
-      return;
-    }
-    const { error: insertErr } = await supabase
-      .from('friendships')
-      .insert({ user_id: user.id, friend_user_id: target.user_id, status: 'pending' });
-    if (insertErr) {
-      toast({ title: 'Failed to send request', description: insertErr.message, variant: 'destructive' });
-      return;
-    }
-
-    // Send email notification to the friend immediately
+    
+    setLoading(true);
+    
     try {
-      const emailResult = await supabase.functions.invoke('send-friend-notification', {
-        body: {
-          senderEmail: user.email,
-          recipientEmail: target.email,
-        }
-      });
-      
-      if (emailResult.error) {
-        console.error('Email service error:', emailResult.error);
-        toast({ 
-          title: 'Friend request sent', 
-          description: `Request sent to ${target.email}, but email notification may be delayed.`,
-          variant: 'default'
-        });
-      } else {
-        toast({ 
-          title: 'Friend request sent!', 
-          description: `Invitation email sent to ${target.email}` 
-        });
+      // Find user by email using secure function
+      const { data: candidates, error: findErr } = await supabase
+        .rpc('search_user_by_email', { search_email: friendEmail });
+      if (findErr) {
+        toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
+        return;
       }
-    } catch (emailError) {
-      console.error('Failed to send notification email:', emailError);
+      const target = candidates?.[0];
+      if (!target) {
+        toast({ title: 'No user found with that email', description: friendEmail });
+        return;
+      }
+      if (target.user_id === user.id) {
+        toast({ title: 'You cannot add yourself' });
+        return;
+      }
+      
+      // Check existing friendship in both directions
+      const { data: existingFriendships, error: checkErr } = await supabase
+        .from('friendships')
+        .select('id, status')
+        .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`);
+      
+      if (checkErr) {
+        toast({ title: 'Could not check existing friendship', description: checkErr.message, variant: 'destructive' });
+        return;
+      }
+      
+      if (existingFriendships && existingFriendships.length > 0) {
+        const status = existingFriendships[0].status;
+        toast({ 
+          title: `Friendship ${status}`, 
+          description: status === 'pending' ? 'A friend request is already pending' : 'You are already friends',
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      // Create friendship
+      const { error: insertErr } = await supabase
+        .from('friendships')
+        .insert({ user_id: user.id, friend_user_id: target.user_id, status: 'pending' });
+      
+      if (insertErr) {
+        toast({ title: 'Failed to send request', description: insertErr.message, variant: 'destructive' });
+        return;
+      }
+
+      // For development/testing: Show success without sending email due to domain restrictions
       toast({ 
-        title: 'Friend request sent', 
-        description: `Request sent to ${target.email}, but email notification failed.`,
+        title: 'Friend request sent!', 
+        description: `Request sent to ${target.email}. Email notifications require domain verification.`,
         variant: 'default'
       });
-    }
 
-    setFriendEmail('');
+      setFriendEmail('');
+      
+    } catch (error) {
+      console.error('Error adding friend:', error);
+      toast({ title: 'Failed to send friend request', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateEntry = async (choice: 'green' | 'red') => {
