@@ -242,14 +242,17 @@ const Dashboard = () => {
         return;
       }
       
-      // Delete any existing pending requests to allow new ones
-      await supabase
+      // Delete any existing requests (both directions) first
+      const { error: deleteErr } = await supabase
         .from('friendships')
         .delete()
-        .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`)
-        .neq('status', 'accepted');
+        .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`);
       
-      // Create friendship
+      if (deleteErr) {
+        console.error('Error deleting existing requests:', deleteErr);
+      }
+      
+      // Create new friendship request
       const { error: insertErr } = await supabase
         .from('friendships')
         .insert({ user_id: user.id, friend_user_id: target.user_id, status: 'pending' });
