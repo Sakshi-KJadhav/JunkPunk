@@ -162,10 +162,11 @@ const Dashboard = () => {
         return;
       }
       
-      // Check existing friendship in both directions
-      const { data: existingFriendships, error: checkErr } = await supabase
+      // Check if users are already accepted friends
+      const { data: acceptedFriendships, error: checkErr } = await supabase
         .from('friendships')
-        .select('id, status')
+        .select('id')
+        .eq('status', 'accepted')
         .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`);
       
       if (checkErr) {
@@ -173,15 +174,21 @@ const Dashboard = () => {
         return;
       }
       
-      if (existingFriendships && existingFriendships.length > 0) {
-        const status = existingFriendships[0].status;
+      if (acceptedFriendships && acceptedFriendships.length > 0) {
         toast({ 
-          title: `Friendship ${status}`, 
-          description: status === 'pending' ? 'A friend request is already pending' : 'You are already friends',
+          title: 'Already friends', 
+          description: 'You are already friends with this user',
           variant: 'destructive'
         });
         return;
       }
+      
+      // Delete any existing pending requests to allow new ones
+      await supabase
+        .from('friendships')
+        .delete()
+        .or(`and(user_id.eq.${user.id},friend_user_id.eq.${target.user_id}),and(user_id.eq.${target.user_id},friend_user_id.eq.${user.id})`)
+        .neq('status', 'accepted');
       
       // Create friendship
       const { error: insertErr } = await supabase
