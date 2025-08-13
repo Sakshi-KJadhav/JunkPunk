@@ -142,7 +142,7 @@ const Dashboard = () => {
       .select(`
         id,
         user_id,
-        profiles!friendships_user_id_fkey(email)
+        profiles!user_id(email)
       `)
       .eq('friend_user_id', user.id)
       .eq('status', 'pending');
