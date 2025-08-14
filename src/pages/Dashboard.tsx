@@ -136,14 +136,10 @@ const Dashboard = () => {
   const fetchPendingRequests = async () => {
     if (!user) return;
     
-    // Get pending friend requests sent TO this user with sender's email
+    // Get pending friend requests sent TO this user
     const { data: requests, error } = await supabase
       .from('friendships')
-      .select(`
-        id,
-        user_id,
-        profiles!user_id(email)
-      `)
+      .select('id, user_id')
       .eq('friend_user_id', user.id)
       .eq('status', 'pending');
     
@@ -152,10 +148,27 @@ const Dashboard = () => {
       return;
     }
     
-    setPendingRequests((requests || []).map(req => ({
+    if (!requests || requests.length === 0) {
+      setPendingRequests([]);
+      return;
+    }
+    
+    // Get sender emails separately
+    const senderIds = requests.map(r => r.user_id);
+    const { data: senderProfiles, error: profileError } = await supabase
+      .from('profiles')
+      .select('user_id, email')
+      .in('user_id', senderIds);
+    
+    if (profileError) {
+      console.error('Error fetching sender profiles:', profileError);
+      return;
+    }
+    
+    setPendingRequests(requests.map(req => ({
       id: req.id,
       user_id: req.user_id,
-      email: (req.profiles as any)?.email || null
+      email: senderProfiles?.find(p => p.user_id === req.user_id)?.email || null
     })));
   };
 
