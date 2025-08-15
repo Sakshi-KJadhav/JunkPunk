@@ -95,7 +95,6 @@ const Index = () => {
               <CardContent>
                 <CardDescription className="text-base">
                   Earn +10 points for healthy days, lose -10 for junk food days. 
-                  Miss a day? That's -20 points to keep you accountable.
                 </CardDescription>
               </CardContent>
             </Card>
