@@ -450,9 +450,9 @@ const Dashboard = () => {
           </DialogContent>
         </Dialog>
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center bg-gradient-to-r from-emerald-100 via-sky-100 to-fuchsia-100 dark:from-transparent dark:via-transparent dark:to-transparent rounded-xl p-4">
           <div>
-            <h1 className="text-3xl font-bold text-primary">JunkPunk Dashboard</h1>
+            <h1 className="text-3xl font-bold text-primary">JunkPunk Dashboard 🎯</h1>
             <p className="text-muted-foreground">Track your healthy eating journey</p>
           </div>
           <div className="flex items-center gap-4">

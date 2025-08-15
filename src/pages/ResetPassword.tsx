@@ -76,8 +76,8 @@ const ResetPassword = () => {
         });
       } else {
         toast({
-          title: "Password updated!",
-          description: "Your password has been successfully updated."
+          title: "Password updated! 🎉",
+          description: "All set! Your new password is ready."
         });
         
         // User is already authenticated via the recovery link. Take them to the app.
@@ -95,23 +95,23 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-success/5 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-emerald-100 to-fuchsia-100 dark:from-background dark:via-accent/20 dark:to-success/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 
             className="text-4xl font-bold text-primary mb-2 cursor-pointer hover:opacity-80 transition-opacity" 
             onClick={() => navigate('/')}
           >
-            JunkPunk
+            JunkPunk 🔑
           </h1>
           <p className="text-muted-foreground">Reset your password</p>
         </div>
         
-        <Card className="shadow-lg">
+        <Card className="shadow-xl border-2 border-primary/10">
           <CardHeader>
             <CardTitle>Create New Password</CardTitle>
             <CardDescription>
-              Enter your new password below
+              Make it memorable and secure 💪
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -124,7 +124,7 @@ const ResetPassword = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder="Enter your new password"
+                  placeholder="At least 6 characters"
                   minLength={6}
                 />
               </div>
@@ -136,7 +136,7 @@ const ResetPassword = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  placeholder="Confirm your new password"
+                  placeholder="Type it again"
                   minLength={6}
                 />
               </div>
@@ -145,7 +145,7 @@ const ResetPassword = () => {
                 disabled={loading}
                 className="w-full"
               >
-                {loading ? 'Updating password...' : 'Update Password'}
+                {loading ? 'Updating…' : 'Update Password'}
               </Button>
             </form>
             

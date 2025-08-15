@@ -64,29 +64,29 @@ const Auth = () => {
       });
     } else {
       toast({
-        title: "Reset link sent!",
-        description: "Check your email for a password reset link."
+        title: "Reset link sent! 📬",
+        description: "Check your inbox for a magic recovery link.",
       });
     }
     setResetLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/30 to-success/10 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-rose-100 via-amber-100 to-teal-100 dark:from-background dark:via-accent/30 dark:to-success/10 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 
             className="text-4xl font-bold text-primary mb-2 cursor-pointer hover:opacity-80 transition-opacity" 
             onClick={() => navigate('/')}
           >
-            JunkPunk
+            JunkPunk 🍏
           </h1>
           <p className="text-muted-foreground">Your healthy eating companion</p>
         </div>
         
-        <Card className="shadow-lg">
+        <Card className="shadow-xl border-2 border-primary/10">
           <CardHeader>
-            <CardTitle>Welcome</CardTitle>
+            <CardTitle>Welcome back 👋</CardTitle>
             <CardDescription>
               Start your journey to healthier eating habits
             </CardDescription>
@@ -108,7 +108,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="Enter your email"
+                      placeholder="you@example.com"
                     />
                   </div>
                   <div>
@@ -119,7 +119,7 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      placeholder="Enter your password"
+                      placeholder="••••••••"
                     />
                   </div>
                   <Button 
@@ -127,7 +127,7 @@ const Auth = () => {
                     disabled={loading}
                     className="w-full"
                   >
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? 'Signing in…' : 'Sign In'}
                   </Button>
                   <div className="text-center mt-4">
                     <Button
@@ -138,7 +138,7 @@ const Auth = () => {
                       disabled={resetLoading}
                       className="text-sm text-muted-foreground hover:text-primary"
                     >
-                      {resetLoading ? 'Sending reset link...' : 'Forgot password?'}
+                      {resetLoading ? 'Sending…' : 'Forgot password?'}
                     </Button>
                   </div>
                 </form>
@@ -154,7 +154,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="Enter your email"
+                      placeholder="you@example.com"
                     />
                   </div>
                   <div>
@@ -165,7 +165,7 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      placeholder="Create a password"
+                      placeholder="At least 6 characters"
                       minLength={6}
                     />
                   </div>
@@ -174,7 +174,7 @@ const Auth = () => {
                     disabled={loading}
                     className="w-full"
                   >
-                    {loading ? 'Creating account...' : 'Create Account'}
+                    {loading ? 'Creating…' : 'Create Account'}
                   </Button>
                 </form>
               </TabsContent>
