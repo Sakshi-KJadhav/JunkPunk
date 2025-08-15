@@ -16,9 +16,12 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have the necessary tokens in the URL
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
+    // Read tokens from both hash fragment and query string (Supabase often returns tokens in the hash)
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const queryParams = searchParams;
+
+    const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
     
     if (!accessToken || !refreshToken) {
       toast({
@@ -74,12 +77,11 @@ const ResetPassword = () => {
       } else {
         toast({
           title: "Password updated!",
-          description: "Your password has been successfully updated. You can now sign in with your new password."
+          description: "Your password has been successfully updated."
         });
         
-        // Sign out the user so they can sign in with the new password
-        await supabase.auth.signOut();
-        navigate('/auth');
+        // User is already authenticated via the recovery link. Take them to the app.
+        navigate('/dashboard');
       }
     } catch (error) {
       toast({
