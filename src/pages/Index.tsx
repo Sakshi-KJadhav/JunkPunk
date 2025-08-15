@@ -74,7 +74,7 @@ const Index = () => {
               </Button>
               
               <p className="text-lg text-gray-600 font-semibold">
-                🎊 Join thousands breaking free from junk food habits! 🎊
+                🎊 "Break free from junk food habits and discover a healthier you." 🎊
               </p>
             </div>
           </div>
@@ -114,8 +114,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base text-gray-700 font-medium">
-                  🏆 Earn +10 points for healthy days, lose -10 for junk food days. 
-                  Level up your health game! 🎮
+                  "🏆 Score +10 points for healthy days, lose -10 for junk food days. Challenge friends, win every week, and level up your health game! 🎮"
+
                 </CardDescription>
               </CardContent>
             </Card>
