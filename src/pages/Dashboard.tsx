@@ -12,6 +12,8 @@ import { CheckCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Trophy, PartyPopper } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { addDays, isAfter } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface DailyEntry {
   id: string;
@@ -38,6 +40,24 @@ const Dashboard = () => {
   const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; email: string | null }[]>([]);
   const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; email: string | null; week_points: number }[]>([]);
   const [lastWeekRange, setLastWeekRange] = useState<{ start: string; end: string } | null>(null);
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Detect if the user arrived via a password recovery link and is in "recovery" state
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const queryParams = new URLSearchParams(window.location.search);
+    const type = hashParams.get('type') || queryParams.get('type');
+
+    if (type === 'recovery') {
+      setShowRecoveryPrompt(true);
+      // Clean up URL so refreshes don't re-open the dialog
+      if (window.history && window.location) {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -414,6 +434,21 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-success/5 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Post-recovery reset prompt */}
+        <Dialog open={showRecoveryPrompt} onOpenChange={setShowRecoveryPrompt}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reset your password?</DialogTitle>
+              <DialogDescription>
+                You signed in using a recovery link. Would you like to set a new password now?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowRecoveryPrompt(false)}>Not now</Button>
+              <Button onClick={() => navigate('/reset-password')}>Reset password</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
