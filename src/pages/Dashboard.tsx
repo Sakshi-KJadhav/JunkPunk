@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { CheckCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
-import { Trophy, PartyPopper } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar as CalendarIcon, Sparkles, Star, Zap } from 'lucide-react';
+import { Trophy, PartyPopper, Crown, Medal } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { addDays, isAfter } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -521,7 +521,7 @@ const Dashboard = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(today, 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-success/5 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Post-recovery reset prompt */}
         <Dialog open={showRecoveryPrompt} onOpenChange={setShowRecoveryPrompt}>
@@ -579,34 +579,38 @@ const Dashboard = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-primary">JunkPunk Dashboard</h1>
-            <p className="text-muted-foreground">Track your healthy eating journey</p>
+            <h1 className="text-4xl font-bold gradient-text flex items-center gap-2">
+              <Sparkles className="h-8 w-8 text-yellow-500 animate-bounce-gentle" />
+              JunkPunk Dashboard
+              <Star className="h-8 w-8 text-purple-500 animate-bounce-gentle" style={{ animationDelay: '0.5s' }} />
+            </h1>
+            <p className="text-gray-600 text-lg font-medium">🌟 Track your healthy eating journey! 🌟</p>
           </div>
           <div className="flex items-center gap-4">
             {profile.username && (
-              <Badge variant="outline" className="text-lg px-4 py-2">
-                @{profile.username}
+              <Badge variant="outline" className="text-lg px-4 py-2 bg-gradient-to-r from-purple-100 to-pink-100 border-purple-300 text-purple-700 font-bold">
+                👤 @{profile.username}
               </Badge>
             )}
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              {profile.total_points} points
+            <Badge variant="outline" className="text-lg px-4 py-2 bg-gradient-to-r from-yellow-100 to-orange-100 border-yellow-300 text-orange-700 font-bold animate-pulse-glow">
+              ⭐ {profile.total_points} points
             </Badge>
-            <Button variant="outline" onClick={signOut}>
-              Sign Out
+            <Button variant="outline" onClick={signOut} className="hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-all duration-300">
+              👋 Sign Out
             </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Calendar */}
-          <Card>
+          <Card className="card-hover bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                Select a Date
+                <CalendarIcon className="h-6 w-6 text-blue-500 animate-bounce-gentle" />
+                📅 Select a Date
               </CardTitle>
               <CardDescription>
-                Choose a date to track your eating habits
+                🗓️ Choose a date to track your eating habits!
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center">
@@ -633,13 +637,13 @@ const Dashboard = () => {
           </Card>
 
           {/* Daily Entry */}
-          <Card>
+          <Card className="card-hover bg-gradient-to-br from-green-50 to-yellow-50 border-2 border-green-200">
             <CardHeader>
-              <CardTitle>
-                {format(selectedDate, 'MMMM d, yyyy')}
+              <CardTitle className="text-xl font-bold text-green-700">
+                📆 {format(selectedDate, 'MMMM d, yyyy')}
               </CardTitle>
               <CardDescription>
-                {isToday ? "How did you do today?" : "How did you do on this day?"}
+                {isToday ? "🤔 How did you do today?" : "🤔 How did you do on this day?"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -647,34 +651,34 @@ const Dashboard = () => {
                 <div className="text-center space-y-4">
                   <div className={`p-4 rounded-lg ${
                     selectedEntry.choice === 'green' 
-                      ? 'bg-success/10 text-success' 
+                      ? 'bg-green-100 text-green-700 border-2 border-green-300' 
                       : selectedEntry.choice === 'red'
-                      ? 'bg-destructive/10 text-destructive'
+                      ? 'bg-red-100 text-red-700 border-2 border-red-300'
                       : ''
                   }`}>
                     {selectedEntry.choice === 'green' && (
                       <div className="flex items-center justify-center gap-2">
-                        <CheckCircle className="h-6 w-6" />
-                        <span className="font-semibold">No junk food! +10 points</span>
+                        <CheckCircle className="h-8 w-8 animate-bounce-gentle" />
+                        <span className="font-bold text-lg">🎉 No junk food! +10 points 🎉</span>
                       </div>
                     )}
                     {selectedEntry.choice === 'red' && (
                       <div className="flex items-center justify-center gap-2">
-                        <XCircle className="h-6 w-6" />
-                        <span className="font-semibold">Had junk food -10 points</span>
+                        <XCircle className="h-8 w-8 animate-bounce-gentle" />
+                        <span className="font-bold text-lg">😔 Had junk food -10 points</span>
                       </div>
                     )}
                   </div>
                   {isToday && (
-                    <p className="text-sm text-muted-foreground">
-                      You can still update today's entry
+                    <p className="text-sm text-gray-600 bg-white/70 rounded-full px-3 py-1">
+                      ✨ You can still update today's entry! ✨
                     </p>
                   )}
                 </div>
               ) : (
                 <div className="text-center">
-                  <p className="text-muted-foreground mb-4">
-                    No entry for this date
+                  <p className="text-gray-600 mb-4 text-lg">
+                    📝 No entry for this date
                   </p>
                 </div>
               )}
@@ -684,20 +688,20 @@ const Dashboard = () => {
                   <Button
                     onClick={() => updateEntry('green')}
                     disabled={loading}
-                    className="bg-success hover:bg-success/90 text-success-foreground"
+                    className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    No Junk Food
-                    <span className="ml-2 text-sm">+10</span>
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    🥗 No Junk Food
+                    <span className="ml-2 text-sm font-bold">+10 ⭐</span>
                   </Button>
                   <Button
                     onClick={() => updateEntry('red')}
                     disabled={loading}
-                    variant="destructive"
+                    className="bg-gradient-to-r from-red-400 to-pink-500 hover:from-red-500 hover:to-pink-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Had Junk Food
-                    <span className="ml-2 text-sm">-10</span>
+                    <XCircle className="h-5 w-5 mr-2" />
+                    🍟 Had Junk Food
+                    <span className="ml-2 text-sm font-bold">-10 💔</span>
                   </Button>
                 </div>
               )}
@@ -707,29 +711,34 @@ const Dashboard = () => {
 
         {/* Pending Friend Requests */}
         {pendingRequests.length > 0 && (
-          <Card>
+          <Card className="card-hover bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200">
             <CardHeader>
-              <CardTitle>Pending Friend Requests</CardTitle>
-              <CardDescription>People who want to be your friend</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-orange-700">
+                <Zap className="h-6 w-6 animate-bounce-gentle" />
+                🤝 Pending Friend Requests
+              </CardTitle>
+              <CardDescription>👥 People who want to be your friend!</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {pendingRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between border rounded-md p-3">
-                  <span className="truncate">{request.username ? `@${request.username}` : request.user_id}</span>
+                <div key={request.id} className="flex items-center justify-between border-2 border-yellow-300 rounded-xl p-3 bg-white/70">
+                  <span className="truncate font-semibold text-gray-700">
+                    👤 {request.username ? `@${request.username}` : request.user_id}
+                  </span>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       onClick={() => handleAcceptRequest(request.id)}
-                      className="bg-success hover:bg-success/90"
+                      className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white font-bold rounded-lg"
                     >
-                      Accept
+                      ✅ Accept
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      className="bg-gradient-to-r from-gray-300 to-gray-400 hover:from-gray-400 hover:to-gray-500 text-gray-700 font-bold rounded-lg"
                       onClick={() => handleRejectRequest(request.id)}
                     >
-                      Reject
+                      ❌ Reject
                     </Button>
                   </div>
                 </div>
@@ -739,31 +748,50 @@ const Dashboard = () => {
         )}
 
         {/* Friends & Leaderboard */}
-        <Card>
+        <Card className="card-hover bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
           <CardHeader>
-            <CardTitle>Friends Leaderboard</CardTitle>
-            <CardDescription>Compete with friends by total points</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-purple-700">
+              <Crown className="h-6 w-6 text-yellow-500 animate-bounce-gentle" />
+              🏆 Friends Leaderboard
+            </CardTitle>
+            <CardDescription>🎮 Compete with friends by total points!</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <form onSubmit={handleAddFriend} className="flex gap-2">
+            <form onSubmit={handleAddFriend} className="flex gap-2 p-3 bg-white/70 rounded-xl border-2 border-purple-200">
               <Input
                 type="text"
-                placeholder="Friend's username"
+                placeholder="👤 Friend's username"
                 value={friendUsername}
                 onChange={(e) => setFriendUsername(sanitizeUsername(e.target.value))}
                 required
+                className="border-purple-300 focus:border-purple-500"
               />
-              <Button type="submit" disabled={loading}>Add Friend</Button>
+              <Button 
+                type="submit" 
+                disabled={loading}
+                className="bg-gradient-to-r from-purple-400 to-pink-500 hover:from-purple-500 hover:to-pink-600 text-white font-bold rounded-lg px-6"
+              >
+                ➕ Add Friend
+              </Button>
             </form>
             <div className="space-y-2">
-              {friends.map((f) => (
-                <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
-                  <span className="truncate">{f.username ? `@${f.username}` : f.user_id}</span>
-                  <Badge variant="outline">{f.total_points} pts</Badge>
+              {friends.map((f, index) => (
+                <div key={f.user_id} className="flex justify-between items-center border-2 border-purple-200 rounded-xl p-3 bg-white/70">
+                  <span className="truncate font-semibold text-gray-700 flex items-center gap-2">
+                    {index === 0 && <Crown className="h-5 w-5 text-yellow-500" />}
+                    {index === 1 && <Medal className="h-5 w-5 text-gray-400" />}
+                    {index === 2 && <Medal className="h-5 w-5 text-orange-400" />}
+                    👤 {f.username ? `@${f.username}` : f.user_id}
+                  </span>
+                  <Badge className="bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 border-purple-300 font-bold">
+                    ⭐ {f.total_points} pts
+                  </Badge>
                 </div>
               ))}
               {friends.length === 0 && (
-                <p className="text-sm text-muted-foreground">No friends yet. Add someone to start competing.</p>
+                <p className="text-sm text-gray-600 text-center bg-white/70 rounded-xl p-4">
+                  👥 No friends yet. Add someone to start competing! 🎮
+                </p>
               )}
             </div>
           </CardContent>
@@ -771,29 +799,34 @@ const Dashboard = () => {
 
         {/* Weekly Winners */}
         {lastWeekRange && (
-          <Card>
+          <Card className="card-hover bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-300">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-500" />
-                Weekly Winners
+                <Trophy className="h-6 w-6 text-yellow-500 animate-bounce-gentle" />
+                🏆 Weekly Winners
               </CardTitle>
               <CardDescription>
-                Last week: {format(new Date(lastWeekRange.start), 'MMM d')} - {format(new Date(lastWeekRange.end), 'MMM d')}
+                📅 Last week: {format(new Date(lastWeekRange.start), 'MMM d')} - {format(new Date(lastWeekRange.end), 'MMM d')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {weeklyWinners.length > 0 ? (
                 weeklyWinners.map((w) => (
-                  <div key={w.user_id} className="flex justify-between items-center border rounded-md p-3 bg-accent/20">
+                  <div key={w.user_id} className="flex justify-between items-center border-2 border-yellow-300 rounded-xl p-3 bg-gradient-to-r from-yellow-100 to-orange-100">
                     <span className="truncate flex items-center gap-2">
-                      <PartyPopper className="h-4 w-4 text-success" />
-                      {w.username ? `@${w.username}` : w.user_id}
+                      <PartyPopper className="h-5 w-5 text-green-500 animate-bounce-gentle" />
+                      <Crown className="h-5 w-5 text-yellow-500" />
+                      👤 {w.username ? `@${w.username}` : w.user_id}
                     </span>
-                    <Badge variant="outline">{w.week_points} pts</Badge>
+                    <Badge className="bg-gradient-to-r from-yellow-200 to-orange-200 text-orange-700 border-orange-300 font-bold">
+                      🏆 {w.week_points} pts
+                    </Badge>
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No entries last week yet. Log your meals to compete!</p>
+                <p className="text-sm text-gray-600 text-center bg-white/70 rounded-xl p-4">
+                  📝 No entries last week yet. Log your meals to compete! 🎮
+                </p>
               )}
             </CardContent>
           </Card>
