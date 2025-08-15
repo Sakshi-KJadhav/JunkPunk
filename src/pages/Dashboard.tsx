@@ -173,19 +173,23 @@ const Dashboard = () => {
   };
 
   const handleAcceptRequest = async (requestId: string) => {
-    const { error } = await supabase
+    if (!user) return;
+
+    const { data, error } = await supabase
       .from('friendships')
       .update({ status: 'accepted' })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('friend_user_id', user.id)
+      .select('id')
+      .single();
     
-    if (error) {
-      toast({ title: 'Failed to accept request', description: error.message, variant: 'destructive' });
+    if (error || !data) {
+      toast({ title: 'Failed to accept request', description: error?.message || 'No matching request found', variant: 'destructive' });
       return;
     }
     
     toast({ title: 'Friend request accepted!', variant: 'default' });
-    fetchPendingRequests();
-    fetchFriends();
+    await Promise.all([fetchPendingRequests(), fetchFriends()]);
   };
 
   const handleRejectRequest = async (requestId: string) => {
