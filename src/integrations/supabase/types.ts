@@ -120,6 +120,14 @@ export type Database = {
           email: string
         }[]
       }
+      get_weekly_leaderboard: {
+        Args: { week_start: string; week_end: string }
+        Returns: {
+          user_id: string
+          email: string | null
+          week_points: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
