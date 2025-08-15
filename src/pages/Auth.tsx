@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
@@ -34,10 +35,28 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const sanitizeUsername = (raw: string) => raw.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     await signUp(email, password);
+    // Best-effort set username if provided
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const authUser = sessionData.session?.user;
+      const candidate = sanitizeUsername(username);
+      if (authUser && candidate && candidate.length >= 3) {
+        const { error: updErr } = await supabase
+          .from('profiles')
+          .update({ username: candidate })
+          .eq('user_id', authUser.id);
+        if (updErr) {
+          // Ignore error here; Dashboard will prompt
+          console.warn('Could not set username during sign up:', updErr.message);
+        }
+      }
+    } catch {}
     setLoading(false);
   };
 
@@ -167,6 +186,17 @@ const Auth = () => {
                       required
                       placeholder="Create a password"
                       minLength={6}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="signup-username">Username (optional)</Label>
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(sanitizeUsername(e.target.value))}
+                      placeholder="your_username"
+                      maxLength={30}
                     />
                   </div>
                   <Button 

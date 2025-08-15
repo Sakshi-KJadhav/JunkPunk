@@ -26,22 +26,29 @@ interface DailyEntry {
 
 interface Profile {
   total_points: number;
+  username: string | null;
 }
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [entries, setEntries] = useState<DailyEntry[]>([]);
-  const [profile, setProfile] = useState<Profile>({ total_points: 0 });
+  const [profile, setProfile] = useState<Profile>({ total_points: 0, username: null });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const [friendEmail, setFriendEmail] = useState('');
-  const [friends, setFriends] = useState<{ user_id: string; email: string | null; total_points: number }[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; email: string | null }[]>([]);
-  const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; email: string | null; week_points: number }[]>([]);
+  const [friendUsername, setFriendUsername] = useState('');
+  const [friends, setFriends] = useState<{ user_id: string; username: string | null; total_points: number }[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; username: string | null }[]>([]);
+  const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; username: string | null; week_points: number }[]>([]);
   const [lastWeekRange, setLastWeekRange] = useState<{ start: string; end: string } | null>(null);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const navigate = useNavigate();
+
+  const [showUsernameDialog, setShowUsernameDialog] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [savingUsername, setSavingUsername] = useState(false);
 
   useEffect(() => {
     // Detect if the user arrived via a password recovery link and is in "recovery" state
@@ -92,14 +99,14 @@ const Dashboard = () => {
     
     const { data, error } = await supabase
       .from('profiles')
-      .select('total_points')
+      .select('total_points, username')
       .eq('user_id', user.id)
       .single();
     
     if (error) {
       console.error('Error fetching profile:', error);
     } else {
-      setProfile(data || { total_points: 0 });
+      setProfile(data || { total_points: 0, username: null });
     }
   };
 
@@ -147,7 +154,7 @@ const Dashboard = () => {
     const idsArray = Array.from(friendIds);
     const { data: profilesData, error: profErr } = await supabase
       .from('profiles')
-      .select('user_id, email, total_points')
+      .select('user_id, username, total_points')
       .in('user_id', idsArray);
     if (profErr) {
       console.error('Error fetching friend profiles:', profErr);
@@ -177,11 +184,11 @@ const Dashboard = () => {
       return;
     }
     
-    // Get sender emails separately
+    // Get sender usernames separately
     const senderIds = requests.map(r => r.user_id);
     const { data: senderProfiles, error: profileError } = await supabase
       .from('profiles')
-      .select('user_id, email')
+      .select('user_id, username')
       .in('user_id', senderIds);
     
     if (profileError) {
@@ -192,7 +199,7 @@ const Dashboard = () => {
     setPendingRequests(requests.map(req => ({
       id: req.id,
       user_id: req.user_id,
-      email: senderProfiles?.find(p => p.user_id === req.user_id)?.email || null
+      username: senderProfiles?.find(p => p.user_id === req.user_id)?.username || null
     })));
   };
 
@@ -296,23 +303,105 @@ const Dashboard = () => {
     }
   }, [user, entries, profile]);
 
+  // Username prompt if not set
+  useEffect(() => {
+    if (!user) return;
+    if (profile && !profile.username) {
+      setShowUsernameDialog(true);
+      if (!usernameInput) {
+        const base = (user.email || '').split('@')[0] || 'user';
+        setUsernameInput(sanitizeUsername(base));
+      }
+    }
+  }, [user, profile]);
+
+  const sanitizeUsername = (raw: string) => {
+    const cleaned = raw.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    const trimmed = cleaned.substring(0, 30);
+    return trimmed.length < 3 ? `${trimmed}123`.substring(0, 3) : trimmed;
+  };
+
+  const checkAvailability = async (name: string) => {
+    if (!name) return false;
+    const candidate = sanitizeUsername(name);
+    const { data, error } = await supabase.rpc('is_username_available', { candidate });
+    if (error) {
+      console.error('Error checking username availability:', error);
+      return false;
+    }
+    return !!data;
+  };
+
+  const suggestUsernames = async () => {
+    if (!user) return;
+    setCheckingUsername(true);
+    try {
+      const baseRaw = (user.email || '').split('@')[0] || 'user';
+      const base = sanitizeUsername(baseRaw);
+      const adjectives = ['fit', 'clean', 'green', 'healthy', 'fresh', 'active', 'vital', 'zen', 'smart', 'bold'];
+      const numbers = [ '', '1', '7', '10', '21', '42', '77', '99' ];
+      const candidates = new Set<string>();
+      candidates.add(base);
+      adjectives.forEach(adj => candidates.add(`${adj}_${base}`));
+      numbers.forEach(n => candidates.add(`${base}${n}`));
+      adjectives.forEach(adj => numbers.forEach(n => candidates.add(`${adj}_${base}${n}`)));
+
+      const uniqueCandidates = Array.from(candidates).slice(0, 40);
+      const checks = await Promise.all(uniqueCandidates.map(c => checkAvailability(c)));
+      const available = uniqueCandidates.filter((c, i) => checks[i]);
+      setUsernameSuggestions(available.slice(0, 5));
+      if (available.length > 0 && !usernameInput) {
+        setUsernameInput(available[0]);
+      }
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
+  const saveUsername = async () => {
+    if (!user) return;
+    const candidate = sanitizeUsername(usernameInput);
+    if (candidate.length < 3) {
+      toast({ title: 'Invalid username', description: 'Must be at least 3 characters', variant: 'destructive' });
+      return;
+    }
+    setSavingUsername(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ username: candidate })
+      .eq('user_id', user.id)
+      .select('username')
+      .single();
+    setSavingUsername(false);
+    if (error) {
+      const msg = /unique/i.test(error.message) ? 'That username is taken' : error.message;
+      toast({ title: 'Could not set username', description: msg, variant: 'destructive' });
+      return;
+    }
+    toast({ title: 'Username set!', description: `Welcome, ${candidate}` });
+    setShowUsernameDialog(false);
+    fetchProfile();
+    fetchFriends();
+    fetchWeeklyLeaderboard();
+  };
+
   const handleAddFriend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !friendEmail) return;
+    if (!user || !friendUsername) return;
     
     setLoading(true);
     
     try {
-      // Find user by email using secure function
+      // Find user by username using secure function
       const { data: candidates, error: findErr } = await supabase
-        .rpc('search_user_by_email', { search_email: friendEmail });
+        .rpc('search_user_by_username', { search_username: friendUsername });
       if (findErr) {
         toast({ title: 'Could not search users', description: findErr.message, variant: 'destructive' });
         return;
       }
       const target = candidates?.[0];
       if (!target) {
-        toast({ title: 'No user found with that email', description: friendEmail });
+        toast({ title: 'No user found with that username', description: friendUsername });
         return;
       }
       if (target.user_id === user.id) {
@@ -363,11 +452,11 @@ const Dashboard = () => {
 
       toast({ 
         title: 'Friend request sent!', 
-        description: `Request sent to ${target.email}. They will see it in their JunkPunk dashboard.`,
+        description: `Request sent to ${target.username}. They will see it in their JunkPunk dashboard.`,
         variant: 'default'
       });
 
-      setFriendEmail('');
+      setFriendUsername('');
       fetchPendingRequests();  // Refresh in case they sent us a request too
       
     } catch (error) {
@@ -449,6 +538,44 @@ const Dashboard = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Username setup prompt */}
+        <Dialog open={showUsernameDialog} onOpenChange={setShowUsernameDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Choose a username</DialogTitle>
+              <DialogDescription>
+                Pick a unique username to appear on leaderboards and for friends to find you.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                type="text"
+                placeholder="your_username"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(sanitizeUsername(e.target.value))}
+                maxLength={30}
+              />
+              <div className="flex gap-2 flex-wrap">
+                <Button type="button" variant="outline" onClick={suggestUsernames} disabled={checkingUsername}>
+                  {checkingUsername ? 'Finding suggestions...' : 'Suggest' }
+                </Button>
+                {usernameSuggestions.map(s => (
+                  <Button key={s} type="button" variant="secondary" onClick={() => setUsernameInput(s)}>
+                    {s}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowUsernameDialog(false)}>Later</Button>
+              <Button onClick={saveUsername} disabled={savingUsername}>
+                {savingUsername ? 'Saving...' : 'Save username'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -456,6 +583,11 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Track your healthy eating journey</p>
           </div>
           <div className="flex items-center gap-4">
+            {profile.username && (
+              <Badge variant="outline" className="text-lg px-4 py-2">
+                @{profile.username}
+              </Badge>
+            )}
             <Badge variant="outline" className="text-lg px-4 py-2">
               {profile.total_points} points
             </Badge>
@@ -583,7 +715,7 @@ const Dashboard = () => {
             <CardContent className="space-y-3">
               {pendingRequests.map((request) => (
                 <div key={request.id} className="flex items-center justify-between border rounded-md p-3">
-                  <span className="truncate">{request.email || request.user_id}</span>
+                  <span className="truncate">{request.username ? `@${request.username}` : request.user_id}</span>
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -615,10 +747,10 @@ const Dashboard = () => {
           <CardContent className="space-y-4">
             <form onSubmit={handleAddFriend} className="flex gap-2">
               <Input
-                type="email"
-                placeholder="Friend's email"
-                value={friendEmail}
-                onChange={(e) => setFriendEmail(e.target.value)}
+                type="text"
+                placeholder="Friend's username"
+                value={friendUsername}
+                onChange={(e) => setFriendUsername(sanitizeUsername(e.target.value))}
                 required
               />
               <Button type="submit" disabled={loading}>Add Friend</Button>
@@ -626,7 +758,7 @@ const Dashboard = () => {
             <div className="space-y-2">
               {friends.map((f) => (
                 <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
-                  <span className="truncate">{f.email || f.user_id}</span>
+                  <span className="truncate">{f.username ? `@${f.username}` : f.user_id}</span>
                   <Badge variant="outline">{f.total_points} pts</Badge>
                 </div>
               ))}
@@ -655,7 +787,7 @@ const Dashboard = () => {
                   <div key={w.user_id} className="flex justify-between items-center border rounded-md p-3 bg-accent/20">
                     <span className="truncate flex items-center gap-2">
                       <PartyPopper className="h-4 w-4 text-success" />
-                      {w.email || w.user_id}
+                      {w.username ? `@${w.username}` : w.user_id}
                     </span>
                     <Badge variant="outline">{w.week_points} pts</Badge>
                   </div>

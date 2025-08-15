@@ -42,6 +42,9 @@ const Index = () => {
                 Transform your eating habits with mindful tracking and positive reinforcement. 
                 Every healthy choice counts towards a better you.
               </p>
+              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                Usernames are used for leaderboards and adding friends. You can choose yours after sign-in.
+              </p>
             </div>
             
             <div className="space-y-6">
