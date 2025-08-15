@@ -73,6 +73,7 @@ export type Database = {
           total_points: number
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -81,6 +82,7 @@ export type Database = {
           total_points?: number
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -89,6 +91,7 @@ export type Database = {
           total_points?: number
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -124,6 +127,7 @@ export type Database = {
         Args: { week_start: string; week_end: string }
         Returns: {
           user_id: string
+          username: string | null
           email: string | null
           week_points: number
         }[]

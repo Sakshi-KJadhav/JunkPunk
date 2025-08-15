@@ -36,9 +36,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [friendEmail, setFriendEmail] = useState('');
-  const [friends, setFriends] = useState<{ user_id: string; email: string | null; total_points: number }[]>([]);
+  const [friends, setFriends] = useState<{ user_id: string; email: string | null; username: string | null; total_points: number }[]>([]);
   const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; email: string | null }[]>([]);
-  const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; email: string | null; week_points: number }[]>([]);
+  const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; email: string | null; week_points: number; username?: string | null }[]>([]);
   const [lastWeekRange, setLastWeekRange] = useState<{ start: string; end: string } | null>(null);
   const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
   const navigate = useNavigate();
@@ -147,7 +147,7 @@ const Dashboard = () => {
     const idsArray = Array.from(friendIds);
     const { data: profilesData, error: profErr } = await supabase
       .from('profiles')
-      .select('user_id, email, total_points')
+      .select('user_id, email, username, total_points')
       .in('user_id', idsArray);
     if (profErr) {
       console.error('Error fetching friend profiles:', profErr);
@@ -265,7 +265,13 @@ const Dashboard = () => {
     }
     const maxPoints = Math.max(...list.map((x: any) => x.week_points));
     const winners = list.filter((x: any) => x.week_points === maxPoints);
-    setWeeklyWinners(winners);
+    // Sort winners by username/email for stable display
+    const sortedWinners = winners.sort((a: any, b: any) => {
+      const an = (a.username || a.email || a.user_id).toLowerCase();
+      const bn = (b.username || b.email || b.user_id).toLowerCase();
+      return an.localeCompare(bn);
+    });
+    setWeeklyWinners(sortedWinners);
   };
 
   useEffect(() => {
@@ -626,7 +632,7 @@ const Dashboard = () => {
             <div className="space-y-2">
               {friends.map((f) => (
                 <div key={f.user_id} className="flex justify-between items-center border rounded-md p-3">
-                  <span className="truncate">{f.email || f.user_id}</span>
+                  <span className="truncate">{f.username || f.email || f.user_id}</span>
                   <Badge variant="outline">{f.total_points} pts</Badge>
                 </div>
               ))}
@@ -655,7 +661,7 @@ const Dashboard = () => {
                   <div key={w.user_id} className="flex justify-between items-center border rounded-md p-3 bg-accent/20">
                     <span className="truncate flex items-center gap-2">
                       <PartyPopper className="h-4 w-4 text-success" />
-                      {w.email || w.user_id}
+                      {(w as any).username || w.email || w.user_id}
                     </span>
                     <Badge variant="outline">{w.week_points} pts</Badge>
                   </div>
