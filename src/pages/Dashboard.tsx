@@ -214,11 +214,12 @@ const Dashboard = () => {
   const getLastCompletedWeekRange = () => {
     const today = new Date();
     const day = today.getDay(); // 0 Sun .. 6 Sat
-    // Last Sunday (end of last completed week)
+    // Last Saturday (end of Sun-Sat week)
     const end = new Date(today);
     end.setHours(0, 0, 0, 0);
-    end.setDate(end.getDate() - day);
-    // Start is Monday before that Sunday
+    const offsetToLastSaturday = (day + 1) % 7; // Sun->1, Mon->2, ..., Sat->0
+    end.setDate(end.getDate() - offsetToLastSaturday);
+    // Start is the Sunday before that Saturday
     const start = new Date(end);
     start.setDate(start.getDate() - 6);
     const toDateStr = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -254,12 +255,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user || weeklyWinners.length === 0 || !lastWeekRange) return;
-    // Celebrate on Mondays for last week's winners, once per week per device
+    // Celebrate on Saturdays for last week's winners, once per week per device
     const today = new Date();
-    const isMonday = today.getDay() === 1;
+    const isSaturday = today.getDay() === 6;
     const storageKey = `celebrated_until_${lastWeekRange.end}`;
     const alreadyCelebrated = localStorage.getItem(storageKey) === '1';
-    if (isMonday && !alreadyCelebrated) {
+    if (isSaturday && !alreadyCelebrated) {
       // Trigger confetti burst
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 } }), 250);
