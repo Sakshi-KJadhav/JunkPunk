@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { CheckCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Trophy, PartyPopper } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { addDays, isAfter } from 'date-fns';
 
 interface DailyEntry {
@@ -34,6 +36,8 @@ const Dashboard = () => {
   const [friendEmail, setFriendEmail] = useState('');
   const [friends, setFriends] = useState<{ user_id: string; email: string | null; total_points: number }[]>([]);
   const [pendingRequests, setPendingRequests] = useState<{ id: string; user_id: string; email: string | null }[]>([]);
+  const [weeklyWinners, setWeeklyWinners] = useState<{ user_id: string; email: string | null; week_points: number }[]>([]);
+  const [lastWeekRange, setLastWeekRange] = useState<{ start: string; end: string } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -206,6 +210,63 @@ const Dashboard = () => {
     toast({ title: 'Friend request rejected', variant: 'default' });
     fetchPendingRequests();
   };
+
+  const getLastCompletedWeekRange = () => {
+    const today = new Date();
+    const day = today.getDay(); // 0 Sun .. 6 Sat
+    // Last Sunday (end of last completed week)
+    const end = new Date(today);
+    end.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() - day);
+    // Start is Monday before that Sunday
+    const start = new Date(end);
+    start.setDate(start.getDate() - 6);
+    const toDateStr = (d: Date) => format(d, 'yyyy-MM-dd');
+    return { start: toDateStr(start), end: toDateStr(end) };
+  };
+
+  const fetchWeeklyLeaderboard = async () => {
+    if (!user) return;
+    const range = getLastCompletedWeekRange();
+    setLastWeekRange(range);
+    const { data, error } = await supabase.rpc('get_weekly_leaderboard', {
+      week_start: range.start,
+      week_end: range.end,
+    });
+    if (error) {
+      console.error('Error fetching weekly leaderboard:', error);
+      return;
+    }
+    const list = data || [];
+    if (list.length === 0) {
+      setWeeklyWinners([]);
+      return;
+    }
+    const maxPoints = Math.max(...list.map((x: any) => x.week_points));
+    const winners = list.filter((x: any) => x.week_points === maxPoints);
+    setWeeklyWinners(winners);
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    fetchWeeklyLeaderboard();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || weeklyWinners.length === 0 || !lastWeekRange) return;
+    // Celebrate on Mondays for last week's winners, once per week per device
+    const today = new Date();
+    const isMonday = today.getDay() === 1;
+    const storageKey = `celebrated_until_${lastWeekRange.end}`;
+    const alreadyCelebrated = localStorage.getItem(storageKey) === '1';
+    if (isMonday && !alreadyCelebrated) {
+      // Trigger confetti burst
+      confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+      setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 } }), 250);
+      setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 } }), 400);
+      localStorage.setItem(storageKey, '1');
+    }
+  }, [user, weeklyWinners, lastWeekRange]);
 
   useEffect(() => {
     if (user) {
@@ -539,6 +600,36 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Weekly Winners */}
+        {lastWeekRange && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-500" />
+                Weekly Winners
+              </CardTitle>
+              <CardDescription>
+                Last week: {format(new Date(lastWeekRange.start), 'MMM d')} - {format(new Date(lastWeekRange.end), 'MMM d')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {weeklyWinners.length > 0 ? (
+                weeklyWinners.map((w) => (
+                  <div key={w.user_id} className="flex justify-between items-center border rounded-md p-3 bg-accent/20">
+                    <span className="truncate flex items-center gap-2">
+                      <PartyPopper className="h-4 w-4 text-success" />
+                      {w.email || w.user_id}
+                    </span>
+                    <Badge variant="outline">{w.week_points} pts</Badge>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No entries last week yet. Log your meals to compete!</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
       </div>
     </div>
